@@ -20,7 +20,7 @@ var (
 )
 
 type Mutator interface {
-	mutate(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error)
+	Mutate(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error)
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +50,7 @@ func handleMutate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := mutator.mutate(*admissionReview.Request)
+	response, err := mutator.Mutate(*admissionReview.Request)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -1,4 +1,4 @@
-module github.com/statcan/istio-virtualservice-mutator
+module github.com/statcan/mutating-webhook-base
 
 go 1.15
 

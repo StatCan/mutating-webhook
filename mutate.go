@@ -32,7 +32,7 @@ func setup() {
 }
 
 // This is the function that will be called to mutate
-func (cm *CustomMutator) mutate(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error) {
+func (cm *CustomMutator) Mutate(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error) {
 	response := v1beta1.AdmissionResponse{}
 
 	// Default response
