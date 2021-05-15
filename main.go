@@ -2,95 +2,86 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"time"
 
+	"github.com/statcan/mutating-webhook-base/pkg/mutatingwebhook"
 	"k8s.io/api/admission/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Based on:
 // https://medium.com/ovni/writing-a-very-basic-kubernetes-mutating-admission-webhook-398dbbcb63ec
 // https://github.com/alex-leonhardt/k8s-mutate-webhook
 
+func main() {
+	mutatingwebhook.ListenAndMutate(
+		&customMutator{},
+		mutatingwebhook.MutatingWebhookConfigs{},
+	)
+}
+
+// Define the variables that you will need.
 var (
-	mutator Mutator
+// define the variables
 )
 
-type Mutator interface {
-	Mutate(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error)
+// Initialize the variables.
+func init() {
+	// initialize the variables via arguments
+	// flag.StringVar(&variable, "argument", "default-value", "Argument description.")
 }
 
-func handleRoot(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello from muating webhook! Mutation available on: /mutate")
+// Define the variables you need in the struct
+type customMutator struct {
+	// add variables you may need in your mutating code
 }
 
-func handleHealthz(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "ok")
-}
+// This is the function that will be called to mutate
+func (cm *customMutator) Mutate(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error) {
+	response := v1beta1.AdmissionResponse{}
 
-func handleMutate(w http.ResponseWriter, r *http.Request) {
-	// Decode the request
-	body, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
-		return
+	// Default response
+	response.Allowed = true
+	response.UID = request.UID
+
+	// Decode the object you are trying to mutate.
+	// Here's an example with a Pod:
+
+	// Decode the pod object
+	var err error
+	//pod := v1.Pod{}
+	// if err := json.Unmarshal(request.Object.Raw, &pod); err != nil {
+	// 	return response, fmt.Errorf("unable to decode Pod %w", err)
+	// }
+
+	// Add the logic you wish to implement and create patches:
+	patches := []map[string]interface{}{
+		{
+			"op":    "add",
+			"path":  "/spec/tolerations/-",
+			"value": "",
+		},
 	}
 
-	admissionReview := v1beta1.AdmissionReview{}
-	if err := json.Unmarshal(body, &admissionReview); err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
-		return
+	// If there are any patches, they will be appended to the
+	if len(patches) > 0 {
+
+		patchType := v1beta1.PatchTypeJSONPatch
+		response.PatchType = &patchType
+
+		response.AuditAnnotations = map[string]string{
+			// Add annotations to clearly denote that actions have
+			// been performed on objects
+		}
+
+		response.Patch, err = json.Marshal(patches)
+		if err != nil {
+			return response, err
+		}
+
+		response.Result = &metav1.Status{
+			Status: metav1.StatusSuccess,
+		}
 	}
 
-	response, err := mutator.Mutate(*admissionReview.Request)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
-		return
-	}
-
-	reviewResponse := v1beta1.AdmissionReview{
-		Response: &response,
-	}
-
-	if body, err = json.Marshal(reviewResponse); err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
-}
-
-func main() {
-
-	setup()
-
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", handleRoot)
-	mux.HandleFunc("/_healthz", handleHealthz)
-	mux.HandleFunc("/mutate", handleMutate)
-
-	s := &http.Server{
-		Addr:           ":8443",
-		Handler:        mux,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-
-	log.Println("Listening on :8443")
-	log.Fatal(s.ListenAndServeTLS("./certs/tls.crt", "./certs/tls.key"))
+	return response, nil
 }

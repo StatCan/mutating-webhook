@@ -10,7 +10,7 @@ import (
 )
 
 func TestMutate(t *testing.T) {
-	mutator := CustomMutator{
+	mutator := customMutator{
 		// add any of the variables you need
 	}
 
@@ -142,7 +142,7 @@ func TestMutate(t *testing.T) {
 	assert.NoError(t, err, "failed to unmarshal with error %q", err)
 
 	//Test your mutate function
-	response, err := mutator.mutate(*review.Request)
+	response, err := mutator.Mutate(*review.Request)
 	assert.NoError(t, err, "failed to mutate with error %q", err)
 
 	patches := []map[string]interface{}{}
