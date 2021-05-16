@@ -1,4 +1,4 @@
-module github.com/statcan/mutating-webhook-base
+module github.com/statcan/mutating-webhook
 
 go 1.15
 

@@ -1,4 +1,4 @@
-package mutatingwebhook
+package main
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMutate(t *testing.T) {
+func TestSetDefault(t *testing.T) {
 	configs := MutatingWebhookConfigs{}
 
 	configs = setDefaults(configs)

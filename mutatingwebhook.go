@@ -1,4 +1,4 @@
-package mutatingwebhook
+package main
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"k8s.io/api/admission/v1beta1"
+	v1 "k8s.io/api/admission/v1"
 )
 
 // Based on:
@@ -17,7 +17,7 @@ import (
 // The Mutator interface is what is implemented to
 // pass the mutation logic to the webserver.
 type Mutator interface {
-	Mutate(request v1beta1.AdmissionRequest) (v1beta1.AdmissionResponse, error)
+	Mutate(request v1.AdmissionRequest) (v1.AdmissionResponse, error)
 }
 
 func (mw *mutatingWebhook) handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -28,6 +28,7 @@ func (mw *mutatingWebhook) handleHealthz(w http.ResponseWriter, r *http.Request)
 	fmt.Fprintf(w, "ok")
 }
 
+// handleMutate is what wraps the Mutator and serves the logic
 func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) {
 	// Decode the request
 	body, err := ioutil.ReadAll(r.Body)
@@ -39,7 +40,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	admissionReview := v1beta1.AdmissionReview{}
+	admissionReview := v1.AdmissionReview{}
 	if err := json.Unmarshal(body, &admissionReview); err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -55,7 +56,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	reviewResponse := v1beta1.AdmissionReview{
+	reviewResponse := v1.AdmissionReview{
 		Response: &response,
 	}
 
@@ -74,7 +75,10 @@ type mutatingWebhook struct {
 	mutator Mutator
 }
 
-// Starts the webserver and serves the passed Mutator on /mutate
+// Starts the webserver and serves:
+// - a welcome message on /
+// - the passed Mutator on /mutate
+// - a health probe on /_healthz
 func ListenAndMutate(
 	mutator Mutator,
 	configs MutatingWebhookConfigs,
