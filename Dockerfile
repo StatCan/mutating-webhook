@@ -1,4 +1,3 @@
-
 # Build with the golang image
 FROM golang:1.15-alpine AS build
 
@@ -15,9 +14,9 @@ RUN go mod download
 
 # Build
 COPY . .
-RUN CGO_ENABLED=0 go build
+RUN CGO_ENABLED=0 go build -o mutating-webhook
 
 # Generate final image
 FROM scratch
-COPY --from=build /work/gpu-toleration-injector /gpu-toleration-injector
-ENTRYPOINT [ "/gpu-toleration-injector" ]
+COPY --from=build /work/mutating-webhook /mutating-webhook
+ENTRYPOINT [ "/mutating-webhook" ]

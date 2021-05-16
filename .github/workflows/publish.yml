@@ -5,9 +5,8 @@
 # To configure this workflow:
 #
 # 1. Set up the following secrets in your workspace:
-#     a. REGISTRY_USERNAME with ACR username
-#     b. REGISTRY_PASSWORD with ACR Password
-#     c. AZURE_CREDENTIALS with the output of `az ad sp create-for-rbac --sdk-auth`
+#     a. REGISTRY_USERNAME with your registry username
+#     b. REGISTRY_PASSWORD with your registry password
 #
 # 2. Change the values for the REGISTRY_NAME, CLUSTER_NAME, CLUSTER_RESOURCE_GROUP and NAMESPACE environment variables (below).
 name: publish
@@ -18,9 +17,8 @@ on:
 
 # Environment variables available to all jobs and steps in this workflow
 env:
-  REGISTRY_NAME: k8scc01covidacr
-  CLUSTER_NAME: k8s-cancentral-01-covid-aks
-  CLUSTER_RESOURCE_GROUP: k8s-cancentral-01-covid-aks
+  REGISTRY_NAME: your-regitry
+  IMAGE_NAME: mutating-webhook
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,23 +34,13 @@ jobs:
 
     # Container build and push to a Azure Container registry (ACR)
     - run: |
-        docker build -f Dockerfile -t ${{ env.REGISTRY_NAME }}.azurecr.io/gpu-toleration-injector:${{ github.sha }} .
-        docker push ${{ env.REGISTRY_NAME }}.azurecr.io/gpu-toleration-injector:${{ github.sha }}
+        docker build -f Dockerfile -t ${{ env.REGISTRY_NAME }}/${{ env.IMAGE_NAME}}:${{ github.sha }} .
+        docker push ${{ env.REGISTRY_NAME }}/${{ env.IMAGE_NAME}}:${{ github.sha }}
 
     # Scan image for vulnerabilities
     - uses: Azure/container-scan@v0
       with:
-        image-name: ${{ env.REGISTRY_NAME }}.azurecr.io/gpu-toleration-injector:${{ github.sha }}
+        image-name: ${{ env.REGISTRY_NAME }}/${{ env.IMAGE_NAME}}:${{ github.sha }}
         severity-threshold: CRITICAL
         run-quality-checks: false
 
-    # Prepare to deploy the image
-    - run: |
-        sed -i -E 's/[0-9a-f]{40}/${{ github.sha }}/g' deploy/deploy.yaml
-
-    # Deploy to Kubernetes
-    - name: kubectl
-      uses: statcan/actions/kubectl@master
-      with:
-        kubeconfig: ${{ secrets.KUBECONFIG }}
-        args: apply -f deploy/deploy.yaml
