@@ -108,6 +108,30 @@ func TestHealthEndpoint(t *testing.T) {
 	mw.Shutdown(context.TODO())
 }
 
+func TestReadyEndpoint(t *testing.T) {
+
+	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+
+	go mw.ListenAndMutate()
+	time.Sleep(500 * time.Millisecond)
+
+	client := getClient()
+
+	//Get Response with initial Certs
+	resp, err := client.Get("https://localhost:8443/_ready")
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	bodyString := string(bodyBytes)
+
+	assert.Equal(t, "ok", bodyString)
+
+	mw.Shutdown(context.TODO())
+}
+
 func TestCertReload(t *testing.T) {
 
 	// Setup cert location for testing
