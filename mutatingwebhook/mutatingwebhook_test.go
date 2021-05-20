@@ -65,7 +65,7 @@ func TestIsCanServeAndShutdown(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
 
@@ -89,7 +89,7 @@ func TestHealthEndpoint(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
 
@@ -113,7 +113,7 @@ func TestReadyEndpoint(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
 
@@ -161,7 +161,7 @@ func TestCertReload(t *testing.T) {
 
 	go mw.ListenAndMutate()
 	// Wait for serving to start
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
 
@@ -178,7 +178,7 @@ func TestCertReload(t *testing.T) {
 	assert.NoError(t, err)
 
 	//Wait for reload
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	resp2, err := client.Get("https://localhost:8443/")
 	assert.NoError(t, err)
@@ -193,7 +193,7 @@ func TestCanMutate(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
 
@@ -204,7 +204,7 @@ func TestCanMutate(t *testing.T) {
 	requestBody, err := json.Marshal(admission)
 	assert.NoError(t, err)
 
-	//Get Response with initial Certs
+	// Post an AdmissionReview to the mutate endpoint
 	resp, err := client.Post("https://localhost:8443/mutate", "application/json", bytes.NewBuffer(requestBody))
 	assert.NoError(t, err)
 	defer resp.Body.Close()
