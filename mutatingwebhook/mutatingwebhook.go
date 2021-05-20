@@ -96,6 +96,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(body)
 }
@@ -144,6 +145,7 @@ func NewMutatingWebhook(
 
 	mux.HandleFunc("/", mw.handleRoot)
 	mux.HandleFunc("/_healthz", mw.handleHealthz)
+	mux.HandleFunc("/_ready", mw.handleHealthz)
 	mux.HandleFunc("/mutate", mw.handleMutate)
 
 	return mw
