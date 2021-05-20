@@ -9,6 +9,10 @@ import (
 	"k8s.io/klog"
 )
 
+// Based on:
+// https://github.com/robustirc/bridge/blob/6b0e8ab3736b2b847b70a924971df0d0024d6b79/tlsutil/tlsutil.go
+// https://stackoverflow.com/questions/37473201/is-there-a-way-to-update-the-tls-certificates-in-a-net-http-server-without-any-d/40883377#40883377
+
 type keypairReloader struct {
 	certMu      sync.RWMutex
 	cert        *tls.Certificate
@@ -17,6 +21,7 @@ type keypairReloader struct {
 	keyPath     string
 }
 
+// Creates the struct that allows for the management of the certificate reloading.
 func newKeypairReloader(certPath, keyPath string) (*keypairReloader, error) {
 	result := &keypairReloader{
 		certPath: certPath,
@@ -72,6 +77,7 @@ func newKeypairReloader(certPath, keyPath string) (*keypairReloader, error) {
 	return result, nil
 }
 
+// Attempts to reload the certificates.
 func (kpr *keypairReloader) maybeReload() error {
 	newCert, err := tls.LoadX509KeyPair(kpr.certPath, kpr.keyPath)
 	if err != nil {
@@ -83,6 +89,8 @@ func (kpr *keypairReloader) maybeReload() error {
 	return nil
 }
 
+// Function which is used to replace
+// http.Server.TLSConfig.GetCertificate so that the certificates can be reloaded.
 func (kpr *keypairReloader) GetCertificateFunc() func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	return func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		kpr.certMu.RLock()
