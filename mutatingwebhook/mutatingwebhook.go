@@ -48,12 +48,18 @@ func (mw *mutatingWebhook) handleHealthz(w http.ResponseWriter, r *http.Request)
 // handleMutate is what wraps the Mutator and serves the logic. of the Mutator.
 func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) {
 
-	// Make sure content type is correct
 	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || contentType != "application/json" {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)
+		return
+	}
+
+	// Make sure content type is correct
+	if contentType != "application/json" {
+		w.WriteHeader(http.StatusUnsupportedMediaType)
+		fmt.Fprintf(w, "%s", "JSON is expected")
 		return
 	}
 
