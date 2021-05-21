@@ -65,6 +65,7 @@ func TestIsCanServeAndShutdown(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
+	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
@@ -80,8 +81,6 @@ func TestIsCanServeAndShutdown(t *testing.T) {
 	bodyString := string(bodyBytes)
 
 	assert.Equal(t, "Hello from mutating-webhook! Mutation available on: /mutate", bodyString)
-
-	mw.Shutdown(context.TODO())
 }
 
 func TestHealthEndpoint(t *testing.T) {
@@ -89,6 +88,7 @@ func TestHealthEndpoint(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
+	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
@@ -104,8 +104,6 @@ func TestHealthEndpoint(t *testing.T) {
 	bodyString := string(bodyBytes)
 
 	assert.Equal(t, "ok", bodyString)
-
-	mw.Shutdown(context.TODO())
 }
 
 func TestReadyEndpoint(t *testing.T) {
@@ -113,6 +111,7 @@ func TestReadyEndpoint(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
+	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
@@ -128,8 +127,6 @@ func TestReadyEndpoint(t *testing.T) {
 	bodyString := string(bodyBytes)
 
 	assert.Equal(t, "ok", bodyString)
-
-	mw.Shutdown(context.TODO())
 }
 
 func TestCertReload(t *testing.T) {
@@ -160,6 +157,7 @@ func TestCertReload(t *testing.T) {
 	})
 
 	go mw.ListenAndMutate()
+	defer mw.Shutdown(context.TODO())
 	// Wait for serving to start
 	time.Sleep(100 * time.Millisecond)
 
@@ -185,7 +183,6 @@ func TestCertReload(t *testing.T) {
 	defer resp2.Body.Close()
 
 	assert.NotEqualValues(t, resp.TLS.PeerCertificates, resp2.TLS.PeerCertificates)
-	mw.Shutdown(context.TODO())
 }
 
 func TestCanMutate(t *testing.T) {
@@ -193,6 +190,7 @@ func TestCanMutate(t *testing.T) {
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
 	go mw.ListenAndMutate()
+	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
 	client := getClient()
@@ -219,8 +217,6 @@ func TestCanMutate(t *testing.T) {
 
 	patchValue := string(admisionReturned.Response.Patch)
 	assert.Equal(t, "It has been mutated!", patchValue)
-
-	mw.Shutdown(context.TODO())
 }
 
 func TestRejectNonJSON(t *testing.T) {
@@ -241,7 +237,7 @@ func TestRejectNonJSON(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Post an AdmissionReview to the mutate endpoint
-	resp, err := client.Post("https://localhost:8443/mutate", "application/xml", bytes.NewBuffer(requestBody))
+	resp, err := client.Post("https://localhost:8443/mutate", "content/xml", bytes.NewBuffer(requestBody))
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
@@ -251,6 +247,36 @@ func TestRejectNonJSON(t *testing.T) {
 	body := string(bodyBytes)
 
 	assert.Equal(t, "JSON is expected", body)
+}
+
+func TestNoMediaType(t *testing.T) {
+
+	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+
+	go mw.ListenAndMutate()
+	defer mw.Shutdown(context.TODO())
+	time.Sleep(100 * time.Millisecond)
+
+	client := getClient()
+
+	var err error
+	admission := getAdmission()
+	admission.Request.Object.Object = &payload
+
+	requestBody, err := json.Marshal(admission)
+	assert.NoError(t, err)
+
+	// Post an AdmissionReview to the mutate endpoint
+	resp, err := client.Post("https://localhost:8443/mutate", "", bytes.NewBuffer(requestBody))
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	body := string(bodyBytes)
+
+	assert.Equal(t, "mime: no media type", body)
 }
 
 // Helper for getting a client that will accept self-signed certs.
