@@ -49,7 +49,7 @@ func (mw *mutatingWebhook) handleHealthz(w http.ResponseWriter, r *http.Request)
 func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) {
 
 	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil || contentType != "application/json" {
+	if err != nil {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)
@@ -59,7 +59,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 	// Make sure content type is correct
 	if contentType != "application/json" {
 		w.WriteHeader(http.StatusUnsupportedMediaType)
-		fmt.Fprintf(w, "%s", "JSON is expected")
+		fmt.Fprintf(w, "JSON is expected")
 		return
 	}
 
@@ -161,6 +161,7 @@ func NewMutatingWebhook(
 // - a welcome message on /
 // - the passed Mutator on /mutate
 // - a health probe on /_healthz
+// - a readiness probe on /_ready
 func (mw *mutatingWebhook) ListenAndMutate() {
 
 	klog.Infof("Listening on %s\n", *mw.configs.Addr)
