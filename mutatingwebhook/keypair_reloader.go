@@ -2,11 +2,10 @@ package mutatingwebhook
 
 import (
 	"crypto/tls"
-	"log"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // Based on:
@@ -37,17 +36,20 @@ func newKeypairReloader(certPath, keyPath string) (*keypairReloader, error) {
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatal(err)
+		klog.Error(err)
+		return nil, err
 	}
 
 	result.fileWatcher = watcher
 	err = result.fileWatcher.Add(certPath)
 	if err != nil {
-		klog.Fatal(err)
+		klog.Error(err)
+		return nil, err
 	}
 	err = result.fileWatcher.Add(keyPath)
 	if err != nil {
-		klog.Fatal(err)
+		klog.Error(err)
+		return nil, err
 	}
 
 	go func() {

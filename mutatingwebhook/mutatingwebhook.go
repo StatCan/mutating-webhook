@@ -139,7 +139,6 @@ func NewMutatingWebhook(
 	kpr, err := newKeypairReloader(*mw.configs.CertFilePath, *mw.configs.KeyFilePath)
 	if err != nil {
 		klog.Fatal(err)
-		// return err
 	}
 	mw.fileWatcher = kpr.fileWatcher
 
