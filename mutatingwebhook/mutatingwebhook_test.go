@@ -64,7 +64,7 @@ func TestIsCanServeAndShutdown(t *testing.T) {
 
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
-	go mw.ListenAndMutate()
+	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
@@ -87,7 +87,7 @@ func TestHealthEndpoint(t *testing.T) {
 
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
-	go mw.ListenAndMutate()
+	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
@@ -110,7 +110,7 @@ func TestReadyEndpoint(t *testing.T) {
 
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
-	go mw.ListenAndMutate()
+	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
@@ -156,7 +156,7 @@ func TestCertReload(t *testing.T) {
 		KeyFilePath:  &keyFile,
 	})
 
-	go mw.ListenAndMutate()
+	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
 	// Wait for serving to start
 	time.Sleep(100 * time.Millisecond)
@@ -189,7 +189,7 @@ func TestCanMutate(t *testing.T) {
 
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
-	go mw.ListenAndMutate()
+	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
@@ -223,7 +223,7 @@ func TestRejectNonJSON(t *testing.T) {
 
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
-	go mw.ListenAndMutate()
+	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 
@@ -253,7 +253,7 @@ func TestNoMediaType(t *testing.T) {
 
 	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
 
-	go mw.ListenAndMutate()
+	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
 	time.Sleep(100 * time.Millisecond)
 

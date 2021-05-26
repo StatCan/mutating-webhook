@@ -30,7 +30,7 @@ type Mutator interface {
 // The basic functions that are needed from a Server.
 // Basic but opionated.
 type MutatingWebhook interface {
-	ListenAndMutate()
+	ListenAndServe()
 	Shutdown(ctx context.Context)
 }
 
@@ -161,7 +161,7 @@ func NewMutatingWebhook(
 // - the passed Mutator on /mutate
 // - a health probe on /_healthz
 // - a readiness probe on /_ready
-func (mw *mutatingWebhook) ListenAndMutate() {
+func (mw *mutatingWebhook) ListenAndServe() {
 
 	klog.Infof("Listening on %s\n", *mw.configs.Addr)
 
