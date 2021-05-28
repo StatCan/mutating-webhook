@@ -62,7 +62,8 @@ func (m *mute) Mutate(request v1.AdmissionRequest) (v1.AdmissionResponse, error)
 
 func TestIsCanServeAndShutdown(t *testing.T) {
 
-	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
@@ -85,7 +86,8 @@ func TestIsCanServeAndShutdown(t *testing.T) {
 
 func TestHealthEndpoint(t *testing.T) {
 
-	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
@@ -108,7 +110,8 @@ func TestHealthEndpoint(t *testing.T) {
 
 func TestReadyEndpoint(t *testing.T) {
 
-	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
@@ -151,10 +154,11 @@ func TestCertReload(t *testing.T) {
 	err = copyFile(filepath.Join(wd, "certs", "tls.key"), keyFile)
 	assert.NoError(t, err)
 
-	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
 		CertFilePath: &certFile,
 		KeyFilePath:  &keyFile,
 	})
+	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
@@ -187,7 +191,8 @@ func TestCertReload(t *testing.T) {
 
 func TestCanMutate(t *testing.T) {
 
-	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
@@ -195,7 +200,6 @@ func TestCanMutate(t *testing.T) {
 
 	client := getClient()
 
-	var err error
 	admission := getAdmission()
 	admission.Request.Object.Object = &payload
 
@@ -221,7 +225,8 @@ func TestCanMutate(t *testing.T) {
 
 func TestRejectNonJSON(t *testing.T) {
 
-	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
@@ -229,7 +234,6 @@ func TestRejectNonJSON(t *testing.T) {
 
 	client := getClient()
 
-	var err error
 	admission := getAdmission()
 	admission.Request.Object.Object = &payload
 
@@ -251,7 +255,8 @@ func TestRejectNonJSON(t *testing.T) {
 
 func TestNoMediaType(t *testing.T) {
 
-	mw := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
 	defer mw.Shutdown(context.TODO())
@@ -259,7 +264,6 @@ func TestNoMediaType(t *testing.T) {
 
 	client := getClient()
 
-	var err error
 	admission := getAdmission()
 	admission.Request.Object.Object = &payload
 

@@ -8,11 +8,9 @@ This repository provides a simple library for easily deploying a [Kubernetes Adm
 
 The `Mutator` interface is what needs to be implemented. It requires a single function: `Mutate(request v1.AdmissionRequest) (v1.AdmissionResponse, error)`. In this function, implement the logic of your mutating webhook.
 
-### `ListenAndMutate` Function
+### Get A `MutatingWebhook` 
 
-The `ListenAndMutate(mutator Mutator, configs MutatingWebhookConfigs)` function is what is used to start the webserver. 
-
-#### Arguments
+The `MutatingWebhook` interface returned by `NewMutatingWebhook(mutator Mutator, configs MutatingWebhookConfigs)` function is what is used to create the server. 
 
 It requires two arguments:
 - `mutator Mutator`: a reference to the `struct` that implements your `Mutate` function.
@@ -26,12 +24,22 @@ It requires two arguments:
   | CertFilePath   | "./certs/tls.crt" |
   | KeyFilePath    | "./certs/tls.key" |
 
-#### Endpoints
+Once you instantiate the struct that implements the interface via the constructor, you can start the server!
+
+#### ListenAndServe()
+
+`ListenAndServe()` is how you'll start the server! It is a blocking function, so it's best to run it in a go routine.
+
+#### Shutdown()
+Once you're ready to stop the application, the `Shutdown()` function can be called.
+
+### Endpoints
 
 There are three endpoints that are available from the webserver:
 - `/` - A welcome message is served at the root.
 - `/mutate` - The `Mutate` function you implemented is served from this endpoint.
-- `/_healthz` - A health endpoint for the Kubernetes Liveness and Readiness probes.
+- `/_healthz` - A health endpoint for the Kubernetes Liveness Probe.
+- `/_ready` - A readiness endpoint for the Kubernetes Readiness Probe.
 
 ## Example Code
 
@@ -39,10 +47,16 @@ There are three endpoints that are available from the webserver:
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"k8s.io/api/admission/v1"
+	mutatingwebhook "github.com/statcan/mutating-webhook"
+	v1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 )
 
 // Define the variables that you will need.
@@ -115,10 +129,37 @@ func (cm *customMutator) Mutate(request v1.AdmissionRequest) (v1.AdmissionRespon
 
 // Starts the webserver and serves the mutate function.
 func main() {
-	ListenAndMutate(
-		&customMutator{},
-		MutatingWebhookConfigs{},
-	)
+
+	mutator := customMutator{
+		// Your variables
+	}
+
+	mw, err := mutatingwebhook.NewMutatingWebhook(&mutator, mutatingwebhook.MutatingWebhookConfigs{
+		// If you want to change defaults, update them here.
+	})
+	if err != nil {
+		klog.Fatal(err)
+	}
+	defer klog.Info(mw.Shutdown(context.TODO()))
+
+	// Make a channel for the error and launch the blocking function in its own thread
+	errChan := make(chan error)
+	go func() {
+		errChan <- mw.ListenAndServe()
+	}()
+
+	// Create channel for interrupts
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	// Wait for interrupt or for server error to exit
+	select {
+	case interrupt := <-c:
+		klog.Info("received interrupt %d -- exiting", interrupt)
+		return
+	case err := <-errChan:
+		klog.Error(err)
+	}
 }
 ```
 
@@ -128,9 +169,12 @@ A [Dockerfile](./Dockerfile) is supplied that can be used to build the Webhook q
 
 ## Helm Chart
 
-A Helm Chart is available in the [statcan/charts](https://github.com/statcan/charts/mutating-webhook).
+A Helm Chart is available in the [statcan/charts](https://github.com/statcan/charts/mutating-webhook). 
+This is the preferred method of deployment which uses cert-manager's capabilities of generating certificates for TLS, a requirement for Admission Webhooks. 
 
 ## Testing
+
+To test your webhook, you may use the tests available in `mutatingwebhook/mutatingwebhook_test.go` for inspiration in devising your own tests.
 ______________________
 
 ## Webhook Mutant

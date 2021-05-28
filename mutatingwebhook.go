@@ -12,6 +12,7 @@ import (
 	"net/http"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/hashicorp/go-multierror"
 	"golang.org/x/net/http2"
 	v1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
@@ -30,8 +31,8 @@ type Mutator interface {
 // The basic functions that are needed from a Server.
 // Basic but opionated.
 type MutatingWebhook interface {
-	ListenAndServe()
-	Shutdown(ctx context.Context)
+	ListenAndServe() error
+	Shutdown(ctx context.Context) error
 }
 
 // A function meant to handle the root of the server.
@@ -118,7 +119,7 @@ type mutatingWebhook struct {
 func NewMutatingWebhook(
 	mutator Mutator,
 	configs MutatingWebhookConfigs,
-) MutatingWebhook {
+) (MutatingWebhook, error) {
 
 	configs = setDefaults(configs)
 	mux := http.NewServeMux()
@@ -138,12 +139,13 @@ func NewMutatingWebhook(
 
 	kpr, err := newKeypairReloader(*mw.configs.CertFilePath, *mw.configs.KeyFilePath)
 	if err != nil {
-		klog.Fatal(err)
+		return nil, err
 	}
+
 	mw.fileWatcher = kpr.fileWatcher
 
 	if err := http2.ConfigureServer(mw.server, nil); err != nil {
-		klog.Fatal(err)
+		return nil, err
 	}
 
 	server.TLSConfig.GetCertificate = kpr.GetCertificateFunc()
@@ -153,7 +155,7 @@ func NewMutatingWebhook(
 	mux.HandleFunc("/_ready", mw.handleHealthz)
 	mux.HandleFunc("/mutate", mw.handleMutate)
 
-	return mw
+	return mw, nil
 }
 
 // Starts the webserver and serves:
@@ -161,24 +163,30 @@ func NewMutatingWebhook(
 // - the passed Mutator on /mutate
 // - a health probe on /_healthz
 // - a readiness probe on /_ready
-func (mw *mutatingWebhook) ListenAndServe() {
+func (mw *mutatingWebhook) ListenAndServe() error {
 
 	klog.Infof("Listening on %s\n", *mw.configs.Addr)
 
 	ln, err := net.Listen("tcp", *mw.configs.Addr)
 	if err != nil {
-		klog.Fatal(err)
+		return err
 	}
 
 	tlsListener := tls.NewListener(ln, mw.server.TLSConfig)
-	mw.server.Serve(tlsListener) //, *mw.configs.CertFilePath, *mw.configs.KeyFilePath))
+	return mw.server.Serve(tlsListener)
 }
 
 // Shuts down the server and any resources it's using.
-func (mw *mutatingWebhook) Shutdown(ctx context.Context) {
-	mw.server.Shutdown(ctx)
-	err := mw.fileWatcher.Close()
-	if err != nil {
-		klog.Error(err)
+func (mw *mutatingWebhook) Shutdown(ctx context.Context) error {
+	var errors *multierror.Error
+
+	if err := mw.server.Shutdown(ctx); err != nil {
+		errors = multierror.Append(errors, err)
 	}
+
+	if err := mw.fileWatcher.Close(); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	return errors.ErrorOrNil()
 }
