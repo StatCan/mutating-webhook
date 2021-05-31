@@ -9,4 +9,5 @@ jobs:
 
     # Container build
     - run: |
-        go test github.com/statcan/mutating-webhook/mutatingwebhook
+        go test github.com/statcan/mutating-webhook
+        
