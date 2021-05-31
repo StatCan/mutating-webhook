@@ -26,16 +26,17 @@ It requires two arguments:
 
 Once you instantiate the struct that implements the interface via the constructor, you can start the server!
 
-#### ListenAndServe()
+### ListenAndServe()
 
 `ListenAndServe()` is how you'll start the server! It is a blocking function, so it's best to run it in a go routine.
 
-#### Shutdown()
-Once you're ready to stop the application, the `Shutdown()` function can be called.
+### Shutdown()
+Once you're ready to stop the application, the `Shutdown()` function can be called. This will attempt to gracefully close all resources and will shutdown the server.
+This will cause the blocking `ListenAndServe` to return a non-nil error. If the shutdown was gracefully completed `ErrServerClosed` will be returned as the error.
 
 ### Endpoints
 
-There are three endpoints that are available from the webserver:
+There are four endpoints that are available from the webserver:
 - `/` - A welcome message is served at the root.
 - `/mutate` - The `Mutate` function you implemented is served from this endpoint.
 - `/_healthz` - A health endpoint for the Kubernetes Liveness Probe.
