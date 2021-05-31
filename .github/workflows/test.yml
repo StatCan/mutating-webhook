@@ -1,0 +1,12 @@
+name: test
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+
+    # Container build
+    - run: |
+        go test github.com/statcan/mutating-webhook/mutatingwebhook
