@@ -1,6 +1,8 @@
 package mutatingwebhook
 
-import "time"
+import (
+	"time"
+)
 
 // Default values used to fill the MutatingWebhookConfigs
 var (
@@ -22,11 +24,14 @@ type MutatingWebhookConfigs struct {
 	ReadTimeout    *time.Duration
 	WriteTimeout   *time.Duration
 	MaxHeaderBytes *int // When 0, defaults to the maximum
-	CertFilePath   *string
-	KeyFilePath    *string
+	// The file path to the certificate file.
+	CertFilePath *string
+	// The file path to the key file from which the certificate is derived.
+	KeyFilePath *string
 }
 
-// Sets defaults for simpler configs.
+// Sets default values.
+// This allows for simpler use of the library.s
 func setDefaults(configs MutatingWebhookConfigs) MutatingWebhookConfigs {
 	if configs.Addr == nil {
 		configs.Addr = &addr
