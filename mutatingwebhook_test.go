@@ -189,7 +189,7 @@ func writeCerts(certDir, name string) error {
 		Subject: pkix.Name{
 			Organization:  []string{"Statistics Canada"},
 			Country:       []string{"CA"},
-			Province:      []string{"ON"},
+			Province:      []string{"Ontario"},
 			Locality:      []string{"Ottawa"},
 			CommonName:    name,
 			StreetAddress: []string{""},
