@@ -3,10 +3,16 @@ package mutatingwebhook
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -62,7 +68,21 @@ func (m *mute) Mutate(request v1.AdmissionRequest) (v1.AdmissionResponse, error)
 
 func TestIsCanServeAndShutdown(t *testing.T) {
 
-	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	// Setup cert location for testing
+	certDir := filepath.Join(os.TempDir(), fmt.Sprintf("mutatingwebhook_certreload_test_%d", time.Now().Unix()))
+	certFile := filepath.Join(certDir, "tls.cert")
+	keyFile := filepath.Join(certDir, "tls.key")
+
+	err := os.MkdirAll(certDir, 0770)
+	assert.NoError(t, err)
+	defer os.RemoveAll(certDir)
+
+	writeCerts(certDir, "mutating-webhook")
+
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
+		CertFilePath: &certFile,
+		KeyFilePath:  &keyFile,
+	})
 	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
@@ -86,7 +106,21 @@ func TestIsCanServeAndShutdown(t *testing.T) {
 
 func TestHealthEndpoint(t *testing.T) {
 
-	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	// Setup cert location for testing
+	certDir := filepath.Join(os.TempDir(), fmt.Sprintf("mutatingwebhook_certreload_test_%d", time.Now().Unix()))
+	certFile := filepath.Join(certDir, "tls.cert")
+	keyFile := filepath.Join(certDir, "tls.key")
+
+	err := os.MkdirAll(certDir, 0770)
+	assert.NoError(t, err)
+	defer os.RemoveAll(certDir)
+
+	writeCerts(certDir, "mutating-webhook")
+
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
+		CertFilePath: &certFile,
+		KeyFilePath:  &keyFile,
+	})
 	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
@@ -110,7 +144,21 @@ func TestHealthEndpoint(t *testing.T) {
 
 func TestReadyEndpoint(t *testing.T) {
 
-	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	// Setup cert location for testing
+	certDir := filepath.Join(os.TempDir(), fmt.Sprintf("mutatingwebhook_certreload_test_%d", time.Now().Unix()))
+	certFile := filepath.Join(certDir, "tls.cert")
+	keyFile := filepath.Join(certDir, "tls.key")
+
+	err := os.MkdirAll(certDir, 0770)
+	assert.NoError(t, err)
+	defer os.RemoveAll(certDir)
+
+	writeCerts(certDir, "mutating-webhook")
+
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
+		CertFilePath: &certFile,
+		KeyFilePath:  &keyFile,
+	})
 	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
@@ -132,10 +180,69 @@ func TestReadyEndpoint(t *testing.T) {
 	assert.Equal(t, "ok", bodyString)
 }
 
+func writeCerts(certDir, name string) error {
+	certFile := filepath.Join(certDir, "tls.cert")
+	keyFile := filepath.Join(certDir, "tls.key")
+
+	cert := &x509.Certificate{
+		SerialNumber: big.NewInt(2019),
+		Subject: pkix.Name{
+			Organization:  []string{"Statistics Canada"},
+			Country:       []string{"CA"},
+			Province:      []string{"ON"},
+			Locality:      []string{"Ottawa"},
+			CommonName:    name,
+			StreetAddress: []string{""},
+			PostalCode:    []string{""},
+		},
+
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(0, 0, 1),
+		IsCA:                  false,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return err
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return err
+	}
+
+	certPEM := new(bytes.Buffer)
+	pem.Encode(certPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+
+	err = ioutil.WriteFile(certFile, certPEM.Bytes(), 0662)
+	if err != nil {
+		return err
+	}
+
+	certPrivKeyPEM := new(bytes.Buffer)
+	pem.Encode(certPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+
+	err = ioutil.WriteFile(keyFile, certPrivKeyPEM.Bytes(), 0662)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func TestCertReload(t *testing.T) {
 
 	// Setup cert location for testing
-	certDir := filepath.Join(os.TempDir(), "mutatingwebhook_certreload_test")
+	certDir := filepath.Join(os.TempDir(), fmt.Sprintf("mutatingwebhook_certreload_test_%d", time.Now().Unix()))
 	certFile := filepath.Join(certDir, "tls.cert")
 	keyFile := filepath.Join(certDir, "tls.key")
 
@@ -144,14 +251,7 @@ func TestCertReload(t *testing.T) {
 	// Cleanup
 	defer os.RemoveAll(certDir)
 
-	// Copy cert
-	wd, err := os.Getwd()
-	assert.NoError(t, err)
-
-	err = copyFile(filepath.Join(wd, "certs", "tls.crt"), certFile)
-	assert.NoError(t, err)
-
-	err = copyFile(filepath.Join(wd, "certs", "tls.key"), keyFile)
+	err = writeCerts(certDir, "webhook1")
 	assert.NoError(t, err)
 
 	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
@@ -173,10 +273,7 @@ func TestCertReload(t *testing.T) {
 	defer resp.Body.Close()
 
 	// Update certs
-	err = copyFile(filepath.Join(wd, "certs", "tls2.crt"), certFile)
-	assert.NoError(t, err)
-
-	err = copyFile(filepath.Join(wd, "certs", "tls2.key"), keyFile)
+	err = writeCerts(certDir, "webhook2")
 	assert.NoError(t, err)
 
 	//Wait for reload
@@ -187,11 +284,26 @@ func TestCertReload(t *testing.T) {
 	defer resp2.Body.Close()
 
 	assert.NotEqualValues(t, resp.TLS.PeerCertificates, resp2.TLS.PeerCertificates)
+	assert.NotEqual(t, resp.TLS.PeerCertificates[0].Subject.CommonName, resp2.TLS.PeerCertificates[0].Subject.CommonName)
 }
 
 func TestCanMutate(t *testing.T) {
 
-	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	// Setup cert location for testing
+	certDir := filepath.Join(os.TempDir(), fmt.Sprintf("mutatingwebhook_certreload_test_%d", time.Now().Unix()))
+	certFile := filepath.Join(certDir, "tls.cert")
+	keyFile := filepath.Join(certDir, "tls.key")
+
+	err := os.MkdirAll(certDir, 0770)
+	assert.NoError(t, err)
+	defer os.RemoveAll(certDir)
+
+	writeCerts(certDir, "mutating-webhook")
+
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
+		CertFilePath: &certFile,
+		KeyFilePath:  &keyFile,
+	})
 	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
@@ -225,7 +337,21 @@ func TestCanMutate(t *testing.T) {
 
 func TestRejectNonJSON(t *testing.T) {
 
-	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	// Setup cert location for testing
+	certDir := filepath.Join(os.TempDir(), fmt.Sprintf("mutatingwebhook_certreload_test_%d", time.Now().Unix()))
+	certFile := filepath.Join(certDir, "tls.cert")
+	keyFile := filepath.Join(certDir, "tls.key")
+
+	err := os.MkdirAll(certDir, 0770)
+	assert.NoError(t, err)
+	defer os.RemoveAll(certDir)
+
+	writeCerts(certDir, "mutating-webhook")
+
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
+		CertFilePath: &certFile,
+		KeyFilePath:  &keyFile,
+	})
 	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
@@ -255,7 +381,21 @@ func TestRejectNonJSON(t *testing.T) {
 
 func TestNoMediaType(t *testing.T) {
 
-	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{})
+	// Setup cert location for testing
+	certDir := filepath.Join(os.TempDir(), fmt.Sprintf("mutatingwebhook_certreload_test_%d", time.Now().Unix()))
+	certFile := filepath.Join(certDir, "tls.cert")
+	keyFile := filepath.Join(certDir, "tls.key")
+
+	err := os.MkdirAll(certDir, 0770)
+	assert.NoError(t, err)
+	defer os.RemoveAll(certDir)
+
+	writeCerts(certDir, "mutating-webhook")
+
+	mw, err := NewMutatingWebhook(&mute{}, MutatingWebhookConfigs{
+		CertFilePath: &certFile,
+		KeyFilePath:  &keyFile,
+	})
 	assert.NoError(t, err)
 
 	go mw.ListenAndServe()
@@ -290,21 +430,6 @@ func getClient() *http.Client {
 	}
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
 	return &http.Client{Transport: transport}
-}
-
-// Helper function for filecopying
-func copyFile(source, destination string) error {
-	input, err := ioutil.ReadFile(source)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(destination, input, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func getAdmission() v1.AdmissionReview {
