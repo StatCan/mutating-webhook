@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"mime"
 	"net"
 	"net/http"
@@ -59,6 +58,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 
 	// Make sure content type is correct
 	if contentType != "application/json" {
+		klog.V(2).Infof("contentType was not application/json")
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 		fmt.Fprintf(w, "JSON is expected")
 		return
@@ -68,7 +68,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 	body, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		log.Println(err)
+		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "%s", err)
 		return
