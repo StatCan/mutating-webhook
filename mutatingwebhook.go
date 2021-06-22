@@ -17,6 +17,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const internalServerError = "an internal server error has occurred"
+
 // Based on:
 // https://medium.com/ovni/writing-a-very-basic-kubernetes-mutating-admission-webhook-398dbbcb63ec
 // https://github.com/alex-leonhardt/k8s-mutate-webhook
@@ -66,23 +68,22 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 
 	// Decode the request
 	body, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-
-	klog.V(5).Infof("request body:\n%s", body)
-
 	if err != nil {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
+		fmt.Fprintf(w, "%s", internalServerError)
 		return
 	}
+	defer r.Body.Close()
+
+	klog.V(5).Infof("request body:\n%s", body)
 
 	// Attempt to get the AdmissionReview the request
 	admissionReview := v1.AdmissionReview{}
 	if err := json.Unmarshal(body, &admissionReview); err != nil {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
+		fmt.Fprintf(w, "%s", internalServerError)
 		return
 	}
 
@@ -91,7 +92,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
+		fmt.Fprintf(w, "%s", internalServerError)
 		return
 	}
 
@@ -102,7 +103,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 	if body, err = json.Marshal(reviewResponse); err != nil {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
+		fmt.Fprintf(w, "%s", internalServerError)
 		return
 	}
 
