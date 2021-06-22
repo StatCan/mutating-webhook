@@ -54,7 +54,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
+		fmt.Fprintf(w, "%s", internalServerError)
 		return
 	}
 
