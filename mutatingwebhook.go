@@ -58,7 +58,7 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 
 	// Make sure content type is correct
 	if contentType != "application/json" {
-		klog.V(2).Infof("contentType was not application/json")
+		klog.Warningf("contentType was not application/json")
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 		fmt.Fprintf(w, "JSON is expected")
 		return
@@ -67,6 +67,9 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 	// Decode the request
 	body, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
+
+	klog.V(5).Infof("request body:\n%s", body)
+
 	if err != nil {
 		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -102,6 +105,8 @@ func (mw *mutatingWebhook) handleMutate(w http.ResponseWriter, r *http.Request) 
 		fmt.Fprintf(w, "%s", err)
 		return
 	}
+
+	klog.V(5).Infof("response body:\n%s", string(body))
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
